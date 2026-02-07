@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  firstName     String    @map("first_name")
+  middleName    String?   @map("middle_name")
+  lastName      String    @map("last_name")
+  suffix        String?
+  role          String    @default("STAFF")
+  position      String?
+  phone         String?
+  address       String?
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLogin     DateTime? @map("last_login")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  createdResidents   Resident[]         @relation("CreatedResidents")
+  createdClearances  BarangayClearance[] @relation("ProcessedClearances")
+  createdIncidents   IncidentReport[]   @relation("ReportedIncidents")
+  createdBlotters    Blotter[]          @relation("CreatedBlotters")
+  createdTransactions FinancialTransaction[] @relation("CreatedTransactions")
+  createdAnnouncements Announcement[]    @relation("CreatedAnnouncements")
+
+  @@map("users")
+}
+
+model Resident {
+  id            Int       @id @default(autoincrement())
+  barangayId    String?   @unique @map("barangay_id")
+  firstName     String    @map("first_name")
+  middleName    String?   @map("middle_name")
+  lastName      String    @map("last_name")
+  suffix        String?
+  birthDate     DateTime  @map("birth_date")
+  birthPlace    String?   @map("birth_place")
+  gender        String
+  civilStatus   String    @default("SINGLE") @map("civil_status")
+  bloodType     String?   @map("blood_type")
+  phone         String?
+  email         String?
+  address       String
+  purok         String?
+  philhealthId  String?   @map("philhealth_id")
+  sssId         String?   @map("sss_id")
+  gsisId        String?   @map("gsis_id")
+  tin           String?
+  votersId      String?   @map("voters_id")
+  isVoter       Boolean   @default(false) @map("is_voter")
+  precinctNumber String?  @map("precinct_number")
+  occupation    String?
+  employmentStatus String? @map("employment_status")
+  monthlyIncome Decimal?  @map("monthly_income")
+  educationalAttainment String? @map("educational_attainment")
+  schoolLastAttended String? @map("school_last_attended")
+  motherName    String?   @map("mother_name")
+  fatherName    String?   @map("father_name")
+  spouseName    String?   @map("spouse_name")
+  isSeniorCitizen Boolean @default(false) @map("is_senior_citizen")
+  isPwd         Boolean   @default(false) @map("is_pwd")
+  isSoloParent  Boolean   @default(false) @map("is_solo_parent")
+  isIndigent    Boolean   @default(false) @map("is_indigent")
+  emergencyContactName String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+  emergencyContactRelationship String? @map("emergency_contact_relationship")
+  photoUrl      String?   @map("photo_url")
+  remarks       String?
+  status        String    @default("active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdBy     Int?      @map("created_by")
+
+  createdByUser User?     @relation("CreatedResidents", fields: [createdBy], references: [id])
+  clearances    BarangayClearance[]
+  blotters      Blotter[]
+
+  @@map("residents")
+}
+
+model BarangayClearance {
+  id            Int       @id @default(autoincrement())
+  clearanceNo   String    @unique @map("clearance_no")
+  residentId    Int       @map("resident_id")
+  purpose       String
+  ctcNo         String?   @map("ctc_no")
+  orNo          String?   @map("or_no")
+  amount        Decimal   @default(0)
+  status        String    @default("PENDING")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  processedAt   DateTime? @map("processed_at")
+  processedBy   Int?      @map("processed_by")
+
+  resident      Resident  @relation(fields: [residentId], references: [id])
+  processedByUser User?   @relation("ProcessedClearances", fields: [processedBy], references: [id])
+
+  @@map("barangay_clearances")
+}
+
+model IncidentReport {
+  id                Int       @id @default(autoincrement())
+  caseNo            String    @unique @map("case_no")
+  incidentType      String    @map("incident_type")
+  incidentDate      DateTime  @map("incident_date")
+  incidentLocation  String    @map("incident_location")
+  description       String
+  complainantName   String    @map("complainant_name")
+  complainantAddress String?  @map("complainant_address")
+  complainantContact String?  @map("complainant_contact")
+  respondentName    String?   @map("respondent_name")
+  respondentAddress String?   @map("respondent_address")
+  respondentContact String?   @map("respondent_contact")
+  status            String    @default("PENDING")
+  resolution        String?
+  resolvedAt        DateTime? @map("resolved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  reportedBy        Int?      @map("reported_by")
+
+  reportedByUser    User?     @relation("ReportedIncidents", fields: [reportedBy], references: [id])
+
+  @@map("incident_reports")
+}
+
+model Blotter {
+  id                Int       @id @default(autoincrement())
+  blotterNo         String    @unique @map("blotter_no")
+  residentId        Int?      @map("resident_id")
+  entryDate         DateTime  @map("entry_date")
+  complainant       String
+  respondent        String?
+  natureOfComplaint String    @map("nature_of_complaint")
+  details           String
+  actionTaken       String?   @map("action_taken")
+  status            String    @default("ACTIVE")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         Int?      @map("created_by")
+
+  resident          Resident? @relation(fields: [residentId], references: [id])
+  createdByUser     User?     @relation("CreatedBlotters", fields: [createdBy], references: [id])
+
+  @@map("blotters")
+}
+
+model FinancialTransaction {
+  id                Int       @id @default(autoincrement())
+  transactionNo     String    @unique @map("transaction_no")
+  transactionType   String    @map("transaction_type")
+  category          String
+  amount            Decimal
+  description       String?
+  payerName         String?   @map("payer_name")
+  payeeName         String?   @map("payee_name")
+  referenceNo       String?   @map("reference_no")
+  transactionDate   DateTime  @map("transaction_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         Int?      @map("created_by")
+
+  createdByUser     User?     @relation("CreatedTransactions", fields: [createdBy], references: [id])
+
+  @@map("financial_transactions")
+}
+
+model Announcement {
+  id                Int       @id @default(autoincrement())
+  title             String
+  content           String
+  announcementType  String    @default("NEWS") @map("announcement_type")
+  eventDate         DateTime? @map("event_date")
+  eventLocation     String?   @map("event_location")
+  imageUrl          String?   @map("image_url")
+  isPinned          Boolean   @default(false) @map("is_pinned")
+  isPublished       Boolean   @default(true) @map("is_published")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdBy         Int?      @map("created_by")
+
+  createdByUser     User?     @relation("CreatedAnnouncements", fields: [createdBy], references: [id])
+
+  @@map("announcements")
+}
+
+model BarangayOfficial {
+  id                Int       @id @default(autoincrement())
+  termStart         DateTime  @map("term_start")
+  termEnd           DateTime  @map("term_end")
+  isActive          Boolean   @default(true) @map("is_active")
+  captainName       String    @map("captain_name")
+  captainPhoto      String?   @map("captain_photo")
+  secretaryName     String?   @map("secretary_name")
+  treasurerName     String?   @map("treasurer_name")
+  kagawad1Name      String?   @map("kagawad1_name")
+  kagawad2Name      String?   @map("kagawad2_name")
+  kagawad3Name      String?   @map("kagawad3_name")
+  kagawad4Name      String?   @map("kagawad4_name")
+  kagawad5Name      String?   @map("kagawad5_name")
+  kagawad6Name      String?   @map("kagawad6_name")
+  kagawad7Name      String?   @map("kagawad7_name")
+  skChairmanName    String?   @map("sk_chairman_name")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("barangay_officials")
+}
+
+model BarangayInfo {
+  id                Int       @id @default(autoincrement())
+  name              String
+  district          String?
+  city              String
+  province          String
+  region            String?
+  contactNumber     String?   @map("contact_number")
+  email             String?
+  address           String?
+  latitude          Decimal?
+  longitude         Decimal?
+  logoUrl           String?   @map("logo_url")
+  sealUrl           String?   @map("seal_url")
+  mission           String?
+  vision            String?
+  history           String?
+  facebookUrl       String?   @map("facebook_url")
+  twitterUrl        String?   @map("twitter_url")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("barangay_info")
+}
