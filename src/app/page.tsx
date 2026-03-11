@@ -21,18 +21,32 @@ import {
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
+async function getHomePageData() {
+  try {
+    const [announcements, barangayInfo] = await Promise.all([
+      db.announcement.findMany({
+        where: { isPublished: true },
+        orderBy: [
+          { isPinned: "desc" },
+          { createdAt: "desc" },
+        ],
+        take: 3,
+      }),
+      db.barangayInfo.findFirst(),
+    ])
+
+    return { announcements, barangayInfo }
+  } catch (error) {
+    console.error("Failed to load homepage data:", error)
+    return {
+      announcements: [],
+      barangayInfo: null,
+    }
+  }
+}
+
 export default async function HomePage() {
-  const [announcements, barangayInfo] = await Promise.all([
-    db.announcement.findMany({
-      where: { isPublished: true },
-      orderBy: [
-        { isPinned: "desc" },
-        { createdAt: "desc" },
-      ],
-      take: 3,
-    }),
-    db.barangayInfo.findFirst(),
-  ])
+  const { announcements, barangayInfo } = await getHomePageData()
 
   return (
     <div className="min-h-screen bg-white">

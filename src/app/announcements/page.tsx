@@ -8,14 +8,23 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Pin } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
+async function getAnnouncements() {
+  try {
+    return await db.announcement.findMany({
+      orderBy: [
+        { isPinned: "desc" },
+        { createdAt: "desc" },
+      ],
+      take: 50,
+    })
+  } catch (error) {
+    console.error("Failed to load announcements:", error)
+    return []
+  }
+}
+
 export default async function AnnouncementsPage() {
-  const announcements = await db.announcement.findMany({
-    orderBy: [
-      { isPinned: "desc" },
-      { createdAt: "desc" },
-    ],
-    take: 50,
-  })
+  const announcements = await getAnnouncements()
 
   const getTypeColor = (type: string) => {
     switch (type) {
