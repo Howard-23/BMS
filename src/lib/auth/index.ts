@@ -29,26 +29,41 @@ export const authOptions: NextAuthOptions = {
 
         const identifier = credentials.username.trim()
         const password = credentials.password
+        let user = null
 
-        const user = await db.user.findFirst({
-          where: {
-            OR: [{ username: identifier }, { email: identifier }],
-          },
-        })
+        try {
+          user = await db.user.findFirst({
+            where: {
+              OR: [{ username: identifier }, { email: identifier }],
+            },
+          })
+        } catch (error) {
+          console.error("Failed to query local user during login:", error)
+        }
 
         const supabaseEmail = user?.email ?? identifier
-        const supabaseResult = await signInWithSupabase(supabaseEmail, password)
+        let supabaseResult: Awaited<ReturnType<typeof signInWithSupabase>> | null = null
 
-        if (!supabaseResult.error && supabaseResult.data?.user) {
+        try {
+          supabaseResult = await signInWithSupabase(supabaseEmail, password)
+        } catch (error) {
+          console.error("Failed to authenticate with Supabase:", error)
+        }
+
+        if (supabaseResult && !supabaseResult.error && supabaseResult.data?.user) {
           if (user && !user.isActive) {
             return null
           }
 
           if (user) {
-            await db.user.update({
-              where: { id: user.id },
-              data: { lastLogin: new Date() }
-            })
+            try {
+              await db.user.update({
+                where: { id: user.id },
+                data: { lastLogin: new Date() }
+              })
+            } catch (error) {
+              console.error("Failed to update last login for local user:", error)
+            }
 
             return {
               id: String(user.id),
@@ -87,10 +102,14 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        await db.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() }
-        })
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+          })
+        } catch (error) {
+          console.error("Failed to update last login for fallback user:", error)
+        }
 
         return {
           id: String(user.id),

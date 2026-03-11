@@ -7,6 +7,26 @@ function cleanValue(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return String(error)
+}
+
+function isDatabaseWriteError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase()
+
+  return (
+    message.includes("readonly") ||
+    message.includes("unable to open database file") ||
+    message.includes("attempt to write a readonly database") ||
+    message.includes("environment variable not found: database_url") ||
+    message.includes("can't reach database server")
+  )
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -31,10 +51,17 @@ export async function POST(request: Request) {
       )
     }
 
-    const [existingUsername, existingEmail] = await Promise.all([
-      db.user.findUnique({ where: { username } }),
-      db.user.findUnique({ where: { email } }),
-    ])
+    let existingUsername = null
+    let existingEmail = null
+
+    try {
+      ;[existingUsername, existingEmail] = await Promise.all([
+        db.user.findUnique({ where: { username } }),
+        db.user.findUnique({ where: { email } }),
+      ])
+    } catch (error) {
+      console.error("Failed to validate local user uniqueness:", error)
+    }
 
     if (existingUsername) {
       return NextResponse.json(
@@ -50,12 +77,25 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabaseResult = await signUpWithSupabase(email, password, {
-      username,
-      firstName,
-      lastName,
-      role: "STAFF",
-    })
+    let supabaseResult
+
+    try {
+      supabaseResult = await signUpWithSupabase(email, password, {
+        username,
+        firstName,
+        lastName,
+        role: "STAFF",
+      })
+    } catch (error) {
+      console.error("Supabase signup failed:", error)
+      return NextResponse.json(
+        {
+          error:
+            "Supabase is not configured on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your project environment variables.",
+        },
+        { status: 500 }
+      )
+    }
 
     if (supabaseResult.error) {
       return NextResponse.json(
@@ -65,22 +105,38 @@ export async function POST(request: Request) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10)
+    let warning: string | undefined
 
-    await db.user.create({
-      data: {
-        username,
-        email,
-        passwordHash,
-        firstName,
-        lastName,
-        role: "STAFF",
-        isActive: true,
-      },
-    })
+    try {
+      await db.user.create({
+        data: {
+          username,
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          role: "STAFF",
+          isActive: true,
+        },
+      })
+    } catch (error) {
+      console.error("Local user profile creation failed:", error)
+
+      if (isDatabaseWriteError(error)) {
+        warning =
+          "Your Supabase account was created, but the app database is not configured for writes on Vercel. Add a hosted DATABASE_URL if you want username-based login and local user records."
+      } else {
+        return NextResponse.json(
+          { error: "Account created in Supabase, but local profile creation failed." },
+          { status: 500 }
+        )
+      }
+    }
 
     return NextResponse.json({
       success: true,
       requiresEmailConfirmation: !supabaseResult.data?.session,
+      warning,
     })
   } catch (error) {
     console.error("Error registering user:", error)

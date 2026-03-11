@@ -64,6 +64,9 @@ export default function RegisterPage() {
           ? "Account created. Check your email to confirm the account before logging in."
           : "Registration successful. You can now sign in."
       )
+      if (result.warning) {
+        toast.warning(result.warning)
+      }
       setLoading(false)
       router.push("/login")
     } catch {
