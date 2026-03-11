@@ -3,6 +3,15 @@ import { NextAuthOptions } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
+import { signInWithSupabase } from "@/lib/supabase-auth"
+
+function getMetadataValue(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string
+) {
+  const value = metadata?.[key]
+  return typeof value === "string" ? value : undefined
+}
 
 export const authOptions: NextAuthOptions = {
   trustHost: true,
@@ -18,21 +27,66 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await db.user.findUnique({
-          where: { username: credentials.username }
+        const identifier = credentials.username.trim()
+        const password = credentials.password
+
+        const user = await db.user.findFirst({
+          where: {
+            OR: [{ username: identifier }, { email: identifier }],
+          },
         })
+
+        const supabaseEmail = user?.email ?? identifier
+        const supabaseResult = await signInWithSupabase(supabaseEmail, password)
+
+        if (!supabaseResult.error && supabaseResult.data?.user) {
+          if (user && !user.isActive) {
+            return null
+          }
+
+          if (user) {
+            await db.user.update({
+              where: { id: user.id },
+              data: { lastLogin: new Date() }
+            })
+
+            return {
+              id: String(user.id),
+              username: user.username,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role,
+              position: user.position ?? undefined,
+            }
+          }
+
+          const supabaseUser = supabaseResult.data.user
+          const metadata = supabaseUser.user_metadata
+          const email = supabaseUser.email ?? supabaseEmail
+          const username = getMetadataValue(metadata, "username") ?? email.split("@")[0]
+
+          return {
+            id: supabaseUser.id,
+            username,
+            email,
+            firstName: getMetadataValue(metadata, "firstName") ?? "User",
+            lastName: getMetadataValue(metadata, "lastName") ?? "",
+            role: getMetadataValue(metadata, "role") ?? "STAFF",
+            position: getMetadataValue(metadata, "position"),
+          }
+        }
 
         if (!user || !user.isActive) {
           return null
         }
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
+        const isValid = await bcrypt.compare(password, user.passwordHash)
 
         if (!isValid) {
           return null
         }
 
-        // Update last login
         await db.user.update({
           where: { id: user.id },
           data: { lastLogin: new Date() }

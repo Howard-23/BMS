@@ -23,6 +23,10 @@ export default function RegisterPage() {
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
+    const firstName = formData.get("firstName") as string
+    const lastName = formData.get("lastName") as string
+    const email = formData.get("email") as string
+    const username = formData.get("username") as string
     const password = formData.get("password") as string
     const confirmPassword = formData.get("confirmPassword") as string
 
@@ -32,12 +36,40 @@ export default function RegisterPage() {
       return
     }
 
-    // Simulate registration - in production, this would call an API
-    setTimeout(() => {
-      toast.success("Registration successful! Please log in.")
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          username,
+          password,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error ?? "Registration failed. Please try again.")
+        setLoading(false)
+        return
+      }
+
+      toast.success(
+        result.requiresEmailConfirmation
+          ? "Account created. Check your email to confirm the account before logging in."
+          : "Registration successful. You can now sign in."
+      )
       setLoading(false)
       router.push("/login")
-    }, 1000)
+    } catch {
+      setError("Registration failed. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (
@@ -101,6 +133,7 @@ export default function RegisterPage() {
                 name="username"
                 placeholder="Choose a username"
                 required
+                autoComplete="username"
               />
             </div>
             
@@ -114,6 +147,7 @@ export default function RegisterPage() {
                   placeholder="Create a password"
                   required
                   minLength={6}
+                  autoComplete="new-password"
                   className="pr-10"
                 />
                 <button
@@ -139,6 +173,7 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="Confirm your password"
                 required
+                autoComplete="new-password"
               />
             </div>
 

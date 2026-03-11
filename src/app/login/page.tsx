@@ -76,11 +76,11 @@ export default function LoginPage() {
           
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Username or Email</Label>
               <Input
                 id="username"
                 name="username"
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
                 required
                 autoComplete="username"
               />
@@ -149,15 +149,12 @@ export default function LoginPage() {
             <Link href="/">View Public Website</Link>
           </Button>
 
-          <Alert className="bg-blue-50 border-blue-200">
-            <AlertDescription className="text-sm text-blue-800">
-              <strong>Demo Credentials:</strong>
-              <br />
-              Username: <code className="bg-blue-100 px-1 rounded">admin</code>
-              <br />
-              Password: <code className="bg-blue-100 px-1 rounded">admin123</code>
-            </AlertDescription>
-          </Alert>
+          <div className="text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-medium text-primary hover:underline">
+              Sign up here
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
